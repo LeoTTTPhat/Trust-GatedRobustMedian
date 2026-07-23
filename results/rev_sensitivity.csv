@@ -1,0 +1,14 @@
+hyperparameter,value,BA,BA_ci,MTA
+gamma_c,1.0,5.3,3.0,88.6
+gamma_c,2.0,4.4,3.2,87.8
+gamma_c,4.0,2.7,2.3,88.0
+gamma_c,8.0,1.8,1.4,86.0
+balance_lambda,0.0,5.4,3.8,87.9
+balance_lambda,0.25,5.0,3.9,87.7
+balance_lambda,0.5,4.4,3.2,87.8
+balance_lambda,0.75,4.0,3.1,87.7
+balance_lambda,1.0,3.9,3.0,87.6
+decay_beta,0.7,4.3,3.4,87.7
+decay_beta,0.8,4.2,3.2,87.8
+decay_beta,0.9,4.4,3.2,87.8
+decay_beta,0.95,4.4,3.0,87.7

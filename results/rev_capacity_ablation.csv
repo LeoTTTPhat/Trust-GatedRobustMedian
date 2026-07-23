@@ -1,0 +1,5 @@
+configuration,BA,BA_ci,MTA,MTA_ci
+Coord-Median,22.3,11.5,87.2,4.4
+TGM - trust-gating (uniform median),23.3,12.7,88.8,3.4
+TGM - median (trust-weighted mean),100.0,0.0,90.0,2.4
+RFW-TGM full (ours),14.0,12.9,87.6,3.7

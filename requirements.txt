@@ -1,0 +1,7 @@
+# Environment for the RFW small-scale validation (Python 3.9+).
+# No PyTorch, no GPU: the client model is a NumPy MLP over sklearn `digits`.
+numpy>=1.24
+scipy>=1.10
+scikit-learn>=1.2
+pandas>=1.5
+matplotlib>=3.6
