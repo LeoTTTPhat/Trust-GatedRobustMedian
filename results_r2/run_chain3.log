@@ -1,0 +1,9 @@
+== gate_tradeoff: 320 runs ==
+   wrote raw_gate_tradeoff.csv in 34s
+== faithful_digits: 480 runs ==
+   wrote raw_faithful_digits.csv in 13s
+== faithful_unsw: 150 runs ==
+   wrote raw_faithful_unsw.csv in 9s
+== faithful_fmnist: 180 runs ==
+   wrote raw_faithful_fmnist.csv in 181s
+DONE ['gate_tradeoff', 'faithful_digits', 'faithful_unsw', 'faithful_fmnist'] in 237s

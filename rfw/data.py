@@ -143,9 +143,53 @@ def _unsw(test_size=0.3, seed=0, subsample=8000):
                 target_label=TARGET_LABEL)
 
 
+# ---------------------------------------------------------------------------
+# Fashion-MNIST (revision R2: conventional visual benchmark)
+# ---------------------------------------------------------------------------
+FMNIST_DIR = os.path.join(DATA_DIR, "fashion_mnist")
+# Official MD5 checksums of the Zalando release (github.com/zalandoresearch/fashion-mnist).
+FMNIST_FILES = {
+    "train-images-idx3-ubyte.gz": "8d4fb7e6c68d591d4c3dfef9ec88bf0d",
+    "train-labels-idx1-ubyte.gz": "25c81989df183df01b3e8a0aad5dffbe",
+    "t10k-images-idx3-ubyte.gz": "bef4ecab320f06d8554ea6380940ec79",
+    "t10k-labels-idx1-ubyte.gz": "bb300cfdad3c16e7a12a480ee83cd310",
+}
+_FMNIST_CACHE = {}
+
+
+def _read_idx_gz(path, offset):
+    import gzip
+    with gzip.open(path, "rb") as f:
+        return np.frombuffer(f.read(), dtype=np.uint8, offset=offset)
+
+
+def _fmnist(seed=0):
+    """Fashion-MNIST (Xiao et al., 2017): official 60k/10k split, 28x28
+    grayscale scaled to [0,1] and flattened to 784 features. The split is the
+    official one for every seed; the seed drives the Dirichlet partition, the
+    malicious set and the model initialisation. Backdoor trigger: a bright 3x3
+    patch in the top-left corner (the digits trigger scaled to 28x28),
+    target class 0 (T-shirt/top)."""
+    if not _FMNIST_CACHE:
+        p = lambda n: os.path.join(FMNIST_DIR, n)
+        Xtr = _read_idx_gz(p("train-images-idx3-ubyte.gz"), 16).reshape(-1, 784)
+        ytr = _read_idx_gz(p("train-labels-idx1-ubyte.gz"), 8).astype(int)
+        Xte = _read_idx_gz(p("t10k-images-idx3-ubyte.gz"), 16).reshape(-1, 784)
+        yte = _read_idx_gz(p("t10k-labels-idx1-ubyte.gz"), 8).astype(int)
+        _FMNIST_CACHE.update(Xtr=Xtr.astype(np.float64) / 255.0, ytr=ytr,
+                             Xte=Xte.astype(np.float64) / 255.0, yte=yte)
+    c = _FMNIST_CACHE
+    trig = np.array([r * 28 + col for r in range(3) for col in range(3)])
+    return dict(Xtr=c["Xtr"], ytr=c["ytr"], Xte=c["Xte"], yte=c["yte"],
+                n_in=784, n_out=10, trigger_idx=trig, trigger_val=1.0,
+                target_label=TARGET_LABEL)
+
+
 def get_dataset(name="digits", seed=0):
     if name == "digits":
         return _digits(seed=seed)
     if name == "unsw":
         return _unsw(seed=seed)
+    if name == "fmnist":
+        return _fmnist(seed=seed)
     raise ValueError(f"unknown dataset {name}")

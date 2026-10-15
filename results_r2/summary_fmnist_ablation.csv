@@ -1,0 +1,13 @@
+block,label,n,BA,BA_ci,MTA,MTA_ci,fails,BA_median,hhat,FPR,trust_ratio,mal_share,mal_frac_rd,s_ben,s_mal
+fmnist_ablation,Coord-Median + clipping|alpha=0.5,10,7.7,6.0,84.9,0.2,0,2.1,4.575,,,,,,
+fmnist_ablation,"Uniform weighted median, no clip|alpha=0.5",10,30.1,28.0,84.9,0.2,3,2.4,4.575,,,,,,
+fmnist_ablation,TGM - trust (uniform weighted median + clip)|alpha=0.5,10,25.5,23.6,85.0,0.2,3,2.4,4.575,2.495,1.939,0.188,0.298,0.236,0.638
+fmnist_ablation,"TGM - median (trust-weighted mean, ARA)|alpha=0.5",10,100.0,0.0,84.8,0.2,10,100.0,4.575,8.38,1.483,0.241,0.298,0.369,0.552
+fmnist_ablation,TGM geometric median|alpha=0.5,10,100.0,0.0,84.8,0.3,10,100.0,4.575,8.67,1.474,0.242,0.298,0.36,0.538
+fmnist_ablation,TGM HAS-only (lam=1)|alpha=0.5,10,1.9,0.4,85.3,0.2,0,1.9,4.575,2.577,3.212,0.126,0.298,0.156,0.725
+fmnist_ablation,TGM provenance-only (lam=0)|alpha=0.5,10,1.8,0.3,85.1,0.3,0,1.8,4.575,1.816,1.791,0.199,0.298,0.186,0.679
+fmnist_ablation,score: direction term only|alpha=0.5,10,25.7,24.7,84.8,0.2,3,2.0,4.575,13.476,0.999,0.3,0.298,0.218,0.218
+fmnist_ablation,score: norm term only|alpha=0.5,10,1.9,0.4,85.3,0.2,0,1.8,4.575,3.039,2.928,0.134,0.298,0.035,0.708
+fmnist_ablation,score: cosine distance + norm|alpha=0.5,10,66.2,23.5,84.7,0.3,8,80.3,4.575,6.852,1.028,0.3,0.298,0.584,0.59
+fmnist_ablation,squash: 1-exp(-r)|alpha=0.5,10,1.9,0.4,85.3,0.3,0,1.8,4.575,2.269,3.218,0.124,0.298,0.174,0.904
+fmnist_ablation,squash: none (s=r)|alpha=0.5,10,2.0,0.6,85.2,0.3,0,2.0,4.575,2.717,11503.679,0.009,0.298,0.167,4.0

@@ -1,0 +1,13 @@
+block,label,n,BA,BA_ci,MTA,MTA_ci,fails,BA_median,hhat
+fltrust_root,A3|root=30|alpha=0.1,10,59.5,19.4,91.2,1.4,5,57.6,4.559
+fltrust_root,A3|root=30|alpha=0.5,10,23.1,16.3,92.5,0.8,2,12.2,3.761
+fltrust_root,A1ctrl|root=30|alpha=100.0,10,8.5,16.1,93.4,0.9,1,0.2,17.469
+fltrust_root,A3|root=60|alpha=0.1,10,45.3,20.6,90.1,2.7,4,38.3,4.411
+fltrust_root,A3|root=60|alpha=0.5,10,5.7,1.9,93.4,0.8,0,4.9,3.523
+fltrust_root,A1ctrl|root=60|alpha=100.0,10,2.6,2.4,94.7,0.8,0,0.4,17.667
+fltrust_root,A3|root=100|alpha=0.1,10,41.2,17.1,92.7,1.6,3,36.2,4.535
+fltrust_root,A3|root=100|alpha=0.5,10,26.3,14.8,94.4,1.0,2,16.9,3.514
+fltrust_root,A1ctrl|root=100|alpha=100.0,10,34.6,23.4,92.1,4.3,3,20.2,17.482
+fltrust_root,A3|root=200|alpha=0.1,10,25.7,10.0,94.0,0.5,1,23.0,4.571
+fltrust_root,A3|root=200|alpha=0.5,10,5.5,3.3,95.2,0.5,0,2.9,3.311
+fltrust_root,A1ctrl|root=200|alpha=100.0,10,1.6,1.4,95.1,0.8,0,0.7,17.724

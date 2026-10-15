@@ -1,0 +1,3 @@
+== fmnist_attacks: 200 runs ==
+   wrote raw_fmnist_attacks.csv in 460s
+DONE ['fmnist_attacks'] in 460s

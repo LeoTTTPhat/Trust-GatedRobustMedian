@@ -1,7 +1,8 @@
-# Environment for the RFW small-scale validation (Python 3.9+).
-# No PyTorch, no GPU: the client model is a NumPy MLP over sklearn `digits`.
-numpy>=1.24
-scipy>=1.10
-scikit-learn>=1.2
-pandas>=1.5
-matplotlib>=3.6
+# Pinned environment used for every number in the revised (R2) paper.
+# Python 3.9.6 (macOS, Apple M3 Ultra). No PyTorch, no GPU.
+# Results at alpha=0.05 depend on the package versions; pin them to reproduce exactly.
+numpy==2.0.2
+scipy==1.13.1
+scikit-learn==1.6.1
+pandas==2.3.3
+matplotlib==3.9.4

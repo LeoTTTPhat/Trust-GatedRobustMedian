@@ -1,0 +1,12 @@
+defense,ms,relative
+fedavg,0.049,1
+trimmed_mean,0.651,13
+median,0.948,19
+multikrum,1.337,27
+bulyan,8.438,171
+alignins,0.334,7
+alignins_orig,1.551,31
+flame,0.454,9
+flame_orig,0.668,14
+rfw,0.323,7
+rfw_pgm,1.895,38

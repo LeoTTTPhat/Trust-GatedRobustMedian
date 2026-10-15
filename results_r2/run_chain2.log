@@ -1,0 +1,9 @@
+== alpha_all: 440 runs ==
+   wrote raw_alpha_all.csv in 12s
+== eta_all: 500 runs ==
+   wrote raw_eta_all.csv in 13s
+== variants_all: 550 runs ==
+   wrote raw_variants_all.csv in 30s
+== adaptive_pk: 200 runs ==
+   wrote raw_adaptive_pk.csv in 59s
+DONE ['alpha_all', 'eta_all', 'variants_all', 'adaptive_pk'] in 114s

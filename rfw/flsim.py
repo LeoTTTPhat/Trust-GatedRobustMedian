@@ -254,6 +254,75 @@ def alignins(updates, lam=2.5, topk_frac=0.1):
     return clipped.mean(axis=0)
 
 
+def flame_original(updates, global_flat, rng=None, lam=1e-3):
+    """FLAME, original recipe (Nguyen et al., USENIX Security 2022, Alg. 1 and
+    App. B.3/E). (1) Pairwise cosine distances between the local MODELS
+    W_i = G_{t-1} + Delta_i (Alg. 1 l.6, Eq. 2). (2) HDBSCAN on the precomputed
+    distances with min_cluster_size = floor(n/2)+1 and hdbscan-library
+    min_samples=1 (= sklearn min_samples=2, which counts the point itself),
+    allow_single_cluster=True; the single majority cluster is admitted and all
+    other points are noise. (3) S_t = median of e_i = ||G_{t-1} - W_i|| over ALL
+    clients; admitted models are clipped to S_t. (4) Unweighted mean of the
+    clipped admitted models. (5) Gaussian noise with sigma = lambda * S_t,
+    lambda = 0.001 (image classification), added to the aggregated model.
+    Not stated in the paper and fixed here: if HDBSCAN labels every point as
+    noise, all clients are admitted (as in public re-implementations)."""
+    from sklearn.cluster import HDBSCAN
+    n = updates.shape[0]
+    if n < 3:
+        return coordinate_median(updates)
+    W = global_flat[None, :] + updates
+    Wn = W / (np.linalg.norm(W, axis=1, keepdims=True) + 1e-12)
+    dist = np.clip(1.0 - Wn @ Wn.T, 0.0, 2.0)
+    dist = (dist + dist.T) / 2.0
+    np.fill_diagonal(dist, 0.0)
+    labels = HDBSCAN(min_cluster_size=n // 2 + 1, min_samples=2, metric='precomputed',
+                     allow_single_cluster=True).fit_predict(dist)
+    admit = labels >= 0
+    if admit.sum() == 0:
+        admit = np.ones(n, bool)
+    e = np.linalg.norm(updates, axis=1)
+    S = float(np.median(e)) + 1e-12
+    adm = updates[admit] * np.minimum(1.0, S / (e[admit] + 1e-12))[:, None]
+    agg = adm.mean(axis=0)
+    if lam > 0:
+        if rng is None:
+            rng = np.random.default_rng(0)
+        agg = agg + rng.normal(0.0, lam * S, size=agg.shape)
+    return agg
+
+
+def alignins_original(updates, global_flat, lam_c=1.0, lam_s=1.0, k_frac=0.3):
+    """AlignIns, original recipe (Xu, Zhang, Hu, CVPR 2025, Eqs. 1-3, Alg. 1).
+    TDA: cosine between each update and the current global model theta^t
+    (Eq. 1). MPSA: principal sign p = sgn(sum_i sgn(Delta_i)); for each client
+    the share of ITS OWN top-k (k = 0.3 d) coordinates whose sign equals p
+    (Eq. 2). MZ-score (x - median)/std with the population std (Eq. 3);
+    clients with |MZ(TDA)| <= 1.0 and |MZ(MPSA)| <= 1.0 are kept. Kept updates
+    are clipped to their median norm and averaged with equal weights (Alg. 1);
+    an empty kept set yields a zero update (official code)."""
+    n, d = updates.shape
+    th = global_flat
+    norms = np.linalg.norm(updates, axis=1) + 1e-12
+    tda = (updates @ th) / (norms * (np.linalg.norm(th) + 1e-12))
+    p = np.sign(np.sign(updates).sum(axis=0))
+    k = max(1, int(k_frac * d))
+    top = np.argpartition(-np.abs(updates), k - 1, axis=1)[:, :k]
+    mpsa = (np.sign(np.take_along_axis(updates, top, axis=1)) == p[top]).mean(axis=1)
+
+    def mz(x):
+        sd = np.std(x)
+        return np.zeros_like(x) if sd == 0 else (x - np.median(x)) / sd
+
+    keep = (np.abs(mz(tda)) <= lam_c) & (np.abs(mz(mpsa)) <= lam_s)
+    if keep.sum() == 0:
+        return np.zeros(d)
+    kept = updates[keep]
+    kn = np.linalg.norm(kept, axis=1)
+    c = float(np.median(kn))
+    return (kept * np.minimum(1.0, c / (kn + 1e-12))[:, None]).mean(axis=0)
+
+
 def quantize_update(delta, bits):
     """b-bit uniform per-vector quantization of a model update, modelling
     bandwidth-constrained gradient compression. Values are scaled to the
@@ -309,6 +378,48 @@ def has_scores(updates, hhat):
     return s, resid_norm, sigma
 
 
+def has_scores_variant(updates, hhat, variant, hhat_cos=1.0):
+    """Revision R2 score-design ablation. ``variant`` selects which HAS terms
+    enter r and which bounded map turns r into s:
+      'dir_only'   r = r_dir                    (residual-direction term only)
+      'norm_only'  r = r_norm                   (robust norm-outlyingness only)
+      'cosine'     r = (1-cos(D_i, mean))/hhat_cos + r_norm
+      'squash_exp' default r, s = 1 - exp(-r)   (alternative bounded map)
+      'no_squash'  default r, s = r             (unbounded score)
+    The default variant is computed by has_scores() unchanged."""
+    mean = updates.mean(axis=0)
+    nm2 = float(mean @ mean) + 1e-12
+    coef = (updates @ mean) / nm2
+    resid = updates - coef[:, None] * mean
+    resid_norm = np.linalg.norm(resid, axis=1)
+    norms = np.linalg.norm(updates, axis=1)
+    sigma = np.std(norms) + 1e-9
+    med = np.median(norms) + 1e-9
+    r_dir = resid_norm / (sigma * hhat + 1e-12)
+    mad = np.median(np.abs(norms - med)) + 1e-9
+    r_norm = np.maximum(0.0, (norms - med) / (mad * hhat + 1e-12))
+    if variant == 'dir_only':
+        r = r_dir
+    elif variant == 'norm_only':
+        r = r_norm
+    elif variant == 'cosine':
+        cosd = 1.0 - (updates @ mean) / (norms * np.sqrt(nm2) + 1e-12)
+        r = cosd / (hhat_cos + 1e-12) + r_norm
+    else:
+        r = r_dir + r_norm
+    if variant == 'squash_exp':
+        return 1.0 - np.exp(-r)
+    if variant == 'no_squash':
+        return r
+    return r / (1.0 + r)
+
+
+def cosine_to_mean(updates):
+    mean = updates.mean(axis=0)
+    norms = np.linalg.norm(updates, axis=1)
+    return 1.0 - (updates @ mean) / (norms * (np.linalg.norm(mean) + 1e-12) + 1e-12)
+
+
 def weighted_coord_median(updates, w):
     """Coordinate-wise WEIGHTED median."""
     w = np.asarray(w, float)
@@ -361,6 +472,15 @@ class Config:
         self.alignins_lam = 2.5      # AlignIns MAD-outlier cutoff
         self.quant_bits = 0          # 0 = full precision; else b-bit update quantization
         self.intermittent_q = 0.5    # prob a malicious client is active in a selected round
+        # --- revision R2 additions (defaults reproduce R1 numbers exactly) ---
+        self.warmup_agg = 'fedavg'   # aggregator during warm-up: 'fedavg' | 'median'
+        self.hhat_scale = 1.0        # multiplicative mis-scaling of the estimated hhat
+        self.hhat_mode = 'warmup'    # 'warmup' (paper) | 'online' (per-round median, no warm-up)
+        self.has_variant = 'default' # score-design ablation, see has_scores_variant()
+        self.adapt_grid_a = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+        self.adapt_grid_k = (0.5, 0.75, 1.0)
+        self.adapt_eval_n = 256      # attacker's triggered evaluation samples
+        self.return_diag = False     # also return the per-round trust diagnostics
         self.seed = 0
         for k, v in kw.items():
             setattr(self, k, v)
@@ -388,11 +508,29 @@ def _aggregate(defense, updates, weights, sample_counts, ctx):
         return robust_learning_rate(updates, theta_count)
     if defense == 'alignins':
         return alignins(updates, lam=ctx.get('alignins_lam', 2.5))
+    # ---- R2 controls isolating clipping and the even-cohort median choice ----
+    if defense == 'median_clip':          # plain (midpoint) median of norm-clipped updates
+        clipped, _ = clip_updates(updates, tau=None)
+        return coordinate_median(clipped)
+    if defense == 'median_wm':            # uniform-weight weighted median, NO clipping
+        return weighted_coord_median(updates, np.ones(len(updates)))
+    if defense == 'flame_orig':
+        return flame_original(updates, ctx['global_flat'], rng=ctx.get('rng'))
+    if defense == 'alignins_orig':
+        return alignins_original(updates, ctx['global_flat'])
 
     # ---- RFW family: compute HAS + UPT combined trust ----------------------
     hhat = ctx['hhat']
     clipped, _ = clip_updates(updates, tau=None)
-    s, _, _ = has_scores(updates, hhat)
+    if ctx.get('hhat_mode', 'warmup') == 'online':
+        # warm-up-free scale: median of the current round's residual ratio
+        _, rn, sg = has_scores(updates, 1.0)
+        hhat = max(float(np.median(rn / sg)), 1e-3)
+    variant = ctx.get('has_variant', 'default')
+    if variant == 'default':
+        s, _, _ = has_scores(updates, hhat)
+    else:
+        s = has_scores_variant(updates, hhat, variant, ctx.get('hhat_cos', 1.0))
     psi = ctx['psi']
     beta = ctx['decay_beta']
     sel = ctx['selected']
@@ -416,6 +554,15 @@ def _aggregate(defense, updates, weights, sample_counts, ctx):
             flagged = (c > thr) & benign_mask
             ctx['fpr'].append(float(flagged.sum()) / float(benign_mask.sum()))
 
+    # ---- R2 trust diagnostics (read-only; attack-active rounds only) --------
+    if ctx.get('diag') is not None and ctx.get('attack_active') and ctx.get('mal') is not None:
+        mmask = np.array([cid in ctx['mal'] for cid in sel])
+        if mmask.any() and (~mmask).any():
+            wn = trust / trust.sum()
+            ctx['diag'].append((float(trust[~mmask].mean()), float(trust[mmask].mean()),
+                                float(wn[mmask].sum()), float(mmask.mean()),
+                                float(s[~mmask].mean()), float(s[mmask].mean())))
+
     if defense == 'rfw':
         return weighted_mean(clipped, trust)
     if defense == 'rfw_pgm':
@@ -430,6 +577,108 @@ def _aggregate(defense, updates, weights, sample_counts, ctx):
     if defense == 'pgm_geo':
         return geometric_median(clipped, w=trust)
     raise ValueError(defense)
+
+
+def _sim_ctx(cfg, hhat, hhat_cos, psi, selected, root_update, global_flat):
+    """Aggregation context for an attacker's look-ahead: same parameters as
+    the server but a COPY of the provenance table, a private RNG and no
+    FPR / diagnostic bookkeeping, so simulating never changes server state."""
+    return dict(hhat=hhat, psi=list(psi), decay_beta=cfg.decay_beta,
+                balance_lambda=cfg.balance_lambda, gamma_c=cfg.gamma_c,
+                trim_frac=cfg.trim_frac, selected=selected,
+                mal_frac=cfg.mal_frac, root_update=root_update,
+                rng=np.random.default_rng(12345), mal=None,
+                rlr_theta_frac=cfg.rlr_theta_frac, alignins_lam=cfg.alignins_lam,
+                has_variant=cfg.has_variant, hhat_mode=cfg.hhat_mode,
+                hhat_cos=hhat_cos, global_flat=global_flat)
+
+
+def adaptive_opt_updates(cfg, updates, selected, mal, sim_ctx, global_flat,
+                         eval_net, Xatk, target):
+    """R2 defense-aware OPTIMISED adaptive attacker (white-box, omniscient).
+
+    All malicious clients selected this round jointly choose a blend weight a
+    (toward the benign mean, to lower the anomaly score) and a norm level k
+    (as a multiple of the benign median norm) for their A3 backdoor updates:
+        u_i(a,k) = k * m_b * (a*bmean + (1-a)*D_i) / ||a*bmean + (1-a)*D_i||.
+    For every (a,k) on the grid the attacker SIMULATES the server's exact
+    aggregation rule (including trust scoring, provenance and clipping) and
+    evaluates the backdoor loss of the resulting next global model on its own
+    trigger-stamped data; it submits the minimiser. This is a one-step
+    (greedy) look-ahead optimisation over a two-parameter family, not a full
+    bi-level optimisation over the model parameters."""
+    mal_pos = [j for j, cid in enumerate(selected) if cid in mal]
+    if not mal_pos:
+        return updates
+    benign = np.array([cid not in mal for cid in selected])
+    bmean = updates[benign].mean(axis=0) if benign.any() else updates.mean(axis=0)
+    mb = (np.median(np.linalg.norm(updates[benign], axis=1)) if benign.any()
+          else np.median(np.linalg.norm(updates, axis=1))) + 1e-12
+    base = updates[mal_pos].copy()
+    sc = np.ones(len(updates))
+    best_loss, best = None, updates
+    for a in cfg.adapt_grid_a:
+        for k in cfg.adapt_grid_k:
+            cand = updates.copy()
+            for jj, j in enumerate(mal_pos):
+                u = a * bmean + (1.0 - a) * base[jj]
+                cand[j] = u * (k * mb / (np.linalg.norm(u) + 1e-12))
+            ctx = dict(sim_ctx); ctx['psi'] = list(sim_ctx['psi'])
+            agg = _aggregate(cfg.defense, cand, sc, sc, ctx)
+            eval_net.set_flat(global_flat + agg)
+            _, _, p = eval_net._forward(Xatk)
+            loss = float(-np.mean(np.log(p[:, target] + 1e-12)))
+            if best_loss is None or loss < best_loss:
+                best_loss, best = loss, cand
+    return best
+
+
+def adaptive_opt_pk_updates(cfg, updates, selected, mal, proxies, sim_ctx, global_flat,
+                            eval_net, Xatk, target):
+    """R2 PARTIAL-KNOWLEDGE variant of the optimised adaptive attacker.
+
+    The attacker does not see benign updates. It estimates the benign
+    population from 'proxy' updates that its own clients compute on their
+    clean local data, builds candidates around the proxy mean and proxy median
+    norm, and simulates the server on a round made of its candidates plus the
+    proxies (tiled to the benign cohort size). Benign provenance is unknown to
+    it (neutral 0.5) and, against FLTrust, the proxy mean stands in for the
+    secret root update. The chosen candidates are then submitted."""
+    mal_pos = [j for j, cid in enumerate(selected) if cid in mal]
+    if not mal_pos or not proxies:
+        return updates
+    P = np.asarray(proxies)
+    bmean = P.mean(axis=0)
+    mb = float(np.median(np.linalg.norm(P, axis=1))) + 1e-12
+    ben_pos = [j for j in range(len(selected)) if j not in mal_pos]
+    reps = P[np.arange(len(ben_pos)) % len(P)]
+    base = updates[mal_pos].copy()
+    sim_psi = list(sim_ctx['psi'])
+    for j in ben_pos:
+        sim_psi[selected[j]] = None            # benign provenance unknown -> neutral
+    sc = np.ones(len(updates))
+    best_loss, best_cands = None, None
+    for a in cfg.adapt_grid_a:
+        for k in cfg.adapt_grid_k:
+            cands = []
+            for jj in range(len(mal_pos)):
+                u = a * bmean + (1.0 - a) * base[jj]
+                cands.append(u * (k * mb / (np.linalg.norm(u) + 1e-12)))
+            sim = updates.copy()
+            sim[ben_pos] = reps
+            sim[mal_pos] = np.array(cands)
+            ctx = dict(sim_ctx); ctx['psi'] = list(sim_psi)
+            if cfg.defense == 'fltrust':
+                ctx['root_update'] = bmean
+            agg = _aggregate(cfg.defense, sim, sc, sc, ctx)
+            eval_net.set_flat(global_flat + agg)
+            _, _, p = eval_net._forward(Xatk)
+            loss = float(-np.mean(np.log(p[:, target] + 1e-12)))
+            if best_loss is None or loss < best_loss:
+                best_loss, best_cands = loss, cands
+    out = updates.copy()
+    out[mal_pos] = np.array(best_cands)
+    return out
 
 
 def run(cfg: Config):
@@ -452,13 +701,18 @@ def run(cfg: Config):
 
     psi = [None] * cfg.n_clients
     warmup_resid = []
+    warmup_cos = []
     hhat = 1.0
+    hhat_cos = 1.0
     fpr_list = []
+    diag_list = []
 
     nontarget = yte != target
     Xbd = stamp_trigger(Xte[nontarget], trig_idx, trig_val)
 
     trojan_flat = None
+    Xatk = None
+    a3_like = ('A3', 'intermittent', 'adaptive_opt', 'adaptive_opt_pk')
     per_round = max(2, int(round(cfg.participation * cfg.n_clients)))
 
     for t in range(cfg.rounds):
@@ -466,8 +720,9 @@ def run(cfg: Config):
         updates = []
         sample_counts = []
         attack_active = (cfg.attack != 'none') and (t >= cfg.attack_start)
+        proxies = []
 
-        if attack_active and cfg.attack in ('A3', 'intermittent') and trojan_flat is None:
+        if attack_active and cfg.attack in a3_like and trojan_flat is None:
             tnet = MLP(n_in, cfg.hidden, n_out, seed=cfg.seed)
             tnet.set_flat(global_flat.copy())
             mal_idx = np.concatenate([parts[c] for c in mal]) if mal else np.array([], int)
@@ -477,6 +732,12 @@ def run(cfg: Config):
                                            rng=np.random.default_rng(cfg.seed + 777))
                 tnet.train_local(Xm, ym, epochs=8, batch_size=cfg.batch_size,
                                  lr=cfg.local_lr, seed=cfg.seed + 1)
+                if cfg.attack in ('adaptive_opt', 'adaptive_opt_pk'):
+                    # attacker's own evaluation set: its non-target samples, triggered
+                    Xn = Xtr[mal_idx][ytr[mal_idx] != target]
+                    ar = np.random.default_rng(cfg.seed + 4242)
+                    pick = ar.choice(len(Xn), size=min(cfg.adapt_eval_n, len(Xn)), replace=False)
+                    Xatk = stamp_trigger(Xn[pick], trig_idx, trig_val)
             trojan_flat = tnet.get_flat()
 
         for cid in selected:
@@ -497,7 +758,14 @@ def run(cfg: Config):
                 if draw >= cfg.intermittent_q:
                     is_mal = False  # dormant this round -> train benignly
 
-            if is_mal and cfg.attack in ('A3', 'intermittent') and trojan_flat is not None:
+            if is_mal and cfg.attack == 'adaptive_opt_pk' and t >= cfg.warmup:
+                # partial knowledge: a benign proxy update on the client's own clean data
+                pnet = MLP(n_in, cfg.hidden, n_out, seed=cfg.seed)
+                pnet.set_flat(global_flat.copy())
+                pnet.train_local(Xc, yc, epochs=cfg.local_epochs, batch_size=cfg.batch_size,
+                                 lr=cfg.local_lr, seed=cfg.seed + t)
+                proxies.append(pnet.get_flat() - global_flat)
+            if is_mal and cfg.attack in a3_like and trojan_flat is not None:
                 local.set_flat(trojan_flat.copy())
                 Xp, yp = make_backdoor_set(Xc, yc, trig_idx, trig_val, target,
                                            poison_frac=cfg.poison_frac, rng=rng)
@@ -528,6 +796,18 @@ def run(cfg: Config):
         sample_counts = np.array(sample_counts, float)
         med_norm = np.median(np.linalg.norm(updates, axis=1)) + 1e-9
 
+        # FLTrust root update: server trains from current global on clean root.
+        # (Computed before the attack step so an omniscient adaptive attacker can
+        # simulate FLTrust; it uses only its own seeds, so numbers are unchanged.)
+        root_update = None
+        if cfg.defense == 'fltrust':
+            rnet = MLP(n_in, cfg.hidden, n_out, seed=cfg.seed)
+            rnet.set_flat(global_flat.copy())
+            rnet.train_local(Xroot, yroot, epochs=cfg.local_epochs,
+                             batch_size=cfg.batch_size, lr=cfg.local_lr,
+                             seed=cfg.seed + 5000 + t)
+            root_update = rnet.get_flat() - global_flat
+
         if attack_active:
             for j, cid in enumerate(selected):
                 if cid not in mal:
@@ -548,24 +828,33 @@ def run(cfg: Config):
                     updates[j] = a * bmean + (1 - a) * updates[j]
                     nrm = np.linalg.norm(updates[j]) + 1e-12
                     updates[j] = updates[j] * min(1.0, med_norm / nrm)
-
-        # FLTrust root update: server trains from current global on clean root.
-        root_update = None
-        if cfg.defense == 'fltrust':
-            rnet = MLP(n_in, cfg.hidden, n_out, seed=cfg.seed)
-            rnet.set_flat(global_flat.copy())
-            rnet.train_local(Xroot, yroot, epochs=cfg.local_epochs,
-                             batch_size=cfg.batch_size, lr=cfg.local_lr,
-                             seed=cfg.seed + 5000 + t)
-            root_update = rnet.get_flat() - global_flat
+            if cfg.attack == 'adaptive_opt' and t >= cfg.warmup and Xatk is not None:
+                sim = _sim_ctx(cfg, hhat, hhat_cos, psi, selected, root_update, global_flat)
+                updates = adaptive_opt_updates(cfg, updates, selected, mal, sim, global_flat,
+                                               MLP(n_in, cfg.hidden, n_out, seed=cfg.seed),
+                                               Xatk, target)
+            if cfg.attack == 'adaptive_opt_pk' and t >= cfg.warmup and Xatk is not None:
+                sim = _sim_ctx(cfg, hhat, hhat_cos, psi, selected, root_update, global_flat)
+                updates = adaptive_opt_pk_updates(cfg, updates, selected, mal, proxies, sim,
+                                                  global_flat,
+                                                  MLP(n_in, cfg.hidden, n_out, seed=cfg.seed),
+                                                  Xatk, target)
 
         if t < cfg.warmup:
             _, resid_norm, sigma = has_scores(updates, 1.0)
             warmup_resid.extend((resid_norm / sigma).tolist())
+            if cfg.has_variant == 'cosine':
+                warmup_cos.extend(cosine_to_mean(updates).tolist())
             if t == cfg.warmup - 1 and warmup_resid:
                 hhat = float(np.quantile(warmup_resid, cfg.hhat_q))
                 hhat = max(hhat, 1e-3)
-            agg = weighted_mean(updates, sample_counts)
+                hhat = hhat * cfg.hhat_scale
+                if warmup_cos:
+                    hhat_cos = max(float(np.quantile(warmup_cos, cfg.hhat_q)), 1e-6)
+            if cfg.warmup_agg == 'median':
+                agg = coordinate_median(updates)
+            else:
+                agg = weighted_mean(updates, sample_counts)
         else:
             ctx = dict(hhat=hhat, psi=psi, decay_beta=cfg.decay_beta,
                        balance_lambda=cfg.balance_lambda, gamma_c=cfg.gamma_c,
@@ -573,7 +862,10 @@ def run(cfg: Config):
                        mal_frac=cfg.mal_frac, root_update=root_update,
                        rng=rng, mal=mal, fpr=fpr_list,
                        rlr_theta_frac=cfg.rlr_theta_frac,
-                       alignins_lam=cfg.alignins_lam)
+                       alignins_lam=cfg.alignins_lam,
+                       has_variant=cfg.has_variant, hhat_mode=cfg.hhat_mode,
+                       hhat_cos=hhat_cos, global_flat=global_flat,
+                       attack_active=attack_active, diag=diag_list)
             agg = _aggregate(cfg.defense, updates, sample_counts, sample_counts, ctx)
 
         global_flat = global_flat + agg
@@ -582,7 +874,16 @@ def run(cfg: Config):
     mta = net.accuracy(Xte, yte)
     ba = float((net.predict(Xbd) == target).mean())
     fpr = float(np.mean(fpr_list)) * 100.0 if fpr_list else float('nan')
-    return dict(BA=ba * 100.0, MTA=mta * 100.0, hhat=hhat, n_mal=n_mal, FPR=fpr)
+    out = dict(BA=ba * 100.0, MTA=mta * 100.0, hhat=hhat, n_mal=n_mal, FPR=fpr)
+    if diag_list:
+        d = np.array(diag_list)
+        out.update(w_ben=float(d[:, 0].mean()), w_mal=float(d[:, 1].mean()),
+                   trust_ratio=float(np.mean(d[:, 0] / d[:, 1])),
+                   mal_share=float(d[:, 2].mean()), mal_frac_rd=float(d[:, 3].mean()),
+                   s_ben=float(d[:, 4].mean()), s_mal=float(d[:, 5].mean()))
+        if cfg.return_diag:
+            out['diag_rounds'] = diag_list
+    return out
 
 
 DEFENSES = ['fedavg', 'median', 'trimmed_mean', 'multikrum', 'fltrust', 'flame',

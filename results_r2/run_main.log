@@ -1,0 +1,33 @@
+== participation: 240 runs ==
+   wrote raw_participation.csv in 8s
+== quant: 500 runs ==
+   wrote raw_quant.csv in 11s
+== sensitivity: 400 runs ==
+   wrote raw_sensitivity.csv in 10s
+== intermittent: 150 runs ==
+   wrote raw_intermittent.csv in 6s
+== controls: 240 runs ==
+   wrote raw_controls.csv in 7s
+== ablation: 450 runs ==
+   wrote raw_ablation.csv in 11s
+== failure50: 2100 runs ==
+   wrote raw_failure50.csv in 46s
+== warmup: 720 runs ==
+   wrote raw_warmup.csv in 18s
+== adaptive: 900 runs ==
+   wrote raw_adaptive.csv in 80s
+== capacity: 270 runs ==
+   wrote raw_capacity.csv in 33s
+== unsw: 560 runs ==
+   wrote raw_unsw.csv in 23s
+== population: 480 runs ==
+   wrote raw_population.csv in 210s
+== fmnist_main: 330 runs ==
+   wrote raw_fmnist_main.csv in 373s
+== fmnist_eta: 240 runs ==
+   wrote raw_fmnist_eta.csv in 288s
+== fmnist_ablation: 120 runs ==
+   wrote raw_fmnist_ablation.csv in 145s
+== fmnist_attacks: 200 runs ==
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/multiprocessing/resource_tracker.py:216: UserWarning: resource_tracker: There appear to be 6 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

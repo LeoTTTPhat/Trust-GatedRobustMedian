@@ -1,0 +1,16 @@
+block,label,n,BA,BA_ci,MTA,MTA_ci,fails,BA_median,FPR,trust_ratio,mal_share,mal_frac_rd,s_ben,s_mal,hhat
+intermittent,TGM HAS-only (lam=1)|eta=0.1,10,1.6,0.9,85.9,2.5,0,1.1,15.831,1.784,0.078,0.11,0.255,0.498,4.561
+intermittent,TGM HAS-only (lam=1)|eta=0.2,10,2.2,1.5,87.2,1.4,0,1.7,12.622,1.731,0.139,0.199,0.228,0.499,4.461
+intermittent,TGM HAS-only (lam=1)|eta=0.3,10,1.6,0.7,87.5,1.4,0,1.2,8.59,1.568,0.224,0.299,0.205,0.453,4.411
+intermittent,TGM fusion (lam=0.5)|eta=0.1,10,1.6,0.9,86.1,2.3,0,1.0,13.688,1.526,0.081,0.11,0.258,0.503,4.561
+intermittent,TGM fusion (lam=0.5)|eta=0.2,10,2.3,1.4,87.5,1.4,0,1.9,11.116,1.552,0.145,0.199,0.229,0.501,4.461
+intermittent,TGM fusion (lam=0.5)|eta=0.3,10,1.7,0.8,87.5,1.5,0,1.5,6.821,1.464,0.232,0.299,0.208,0.455,4.411
+intermittent,TGM prov-only (lam=0)|eta=0.1,10,1.7,1.0,86.2,2.2,0,1.0,10.945,1.332,0.087,0.11,0.26,0.506,4.561
+intermittent,TGM prov-only (lam=0)|eta=0.2,10,2.4,1.5,87.9,1.4,0,1.9,8.675,1.377,0.157,0.199,0.231,0.503,4.461
+intermittent,TGM prov-only (lam=0)|eta=0.3,10,2.5,1.2,87.8,1.6,0,1.6,5.583,1.326,0.248,0.299,0.212,0.453,4.411
+intermittent,Coord-Median|eta=0.1,10,1.5,1.0,88.4,1.7,0,0.8,,,,,,,4.561
+intermittent,Coord-Median|eta=0.2,10,2.1,1.3,89.4,1.5,0,1.5,,,,,,,4.461
+intermittent,Coord-Median|eta=0.3,10,2.1,1.0,89.6,1.6,0,1.5,,,,,,,4.411
+intermittent,AlignIns|eta=0.1,10,4.3,5.1,93.4,0.5,0,1.5,,,,,,,4.561
+intermittent,AlignIns|eta=0.2,10,5.1,7.1,93.0,1.0,0,0.9,,,,,,,4.461
+intermittent,AlignIns|eta=0.3,10,1.2,1.4,93.3,0.7,0,0.3,,,,,,,4.411

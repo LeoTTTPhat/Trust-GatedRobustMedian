@@ -1,0 +1,46 @@
+block,label,n,BA,BA_ci,MTA,MTA_ci,fails,BA_median,hhat,FPR,trust_ratio,mal_share,mal_frac_rd,s_ben,s_mal
+ablation,FedAvg|alpha=0.05,10,100.0,0.1,89.5,1.3,10,100.0,5.066,,,,,,
+ablation,"Coord-Median (midpoint, no clip)|alpha=0.05",10,38.5,25.5,84.2,3.0,4,10.8,5.066,,,,,,
+ablation,Coord-Median + clipping|alpha=0.05,10,34.7,22.3,84.5,2.9,4,11.9,5.066,,,,,,
+ablation,"Uniform weighted median, no clip|alpha=0.05",10,46.2,28.7,83.6,3.1,4,16.4,5.066,,,,,,
+ablation,TGM - trust (uniform weighted median + clip)|alpha=0.05,10,46.2,28.5,83.8,3.0,4,16.2,5.066,12.856,1.206,0.267,0.298,0.22,0.315
+ablation,"TGM - median (trust-weighted mean, ARA)|alpha=0.05",10,100.0,0.0,84.3,2.9,10,100.0,5.066,20.415,0.951,0.315,0.298,0.283,0.202
+ablation,TGM geometric median|alpha=0.05,10,100.0,0.0,82.3,3.0,10,100.0,5.066,19.682,0.962,0.314,0.298,0.271,0.195
+ablation,TGM HAS-only (lam=1)|alpha=0.05,10,22.8,25.3,82.1,3.7,2,4.2,5.066,8.706,1.481,0.239,0.298,0.193,0.355
+ablation,TGM provenance-only (lam=0)|alpha=0.05,10,4.3,2.8,82.7,3.5,0,3.4,5.066,5.148,1.235,0.259,0.298,0.19,0.368
+ablation,TGM full (lam=0.5)|alpha=0.05,10,12.7,18.9,82.4,3.6,1,3.8,5.066,6.665,1.358,0.245,0.298,0.188,0.369
+ablation,score: direction term only|alpha=0.05,10,36.4,27.2,83.0,3.5,3,9.6,5.066,18.017,1.027,0.294,0.298,0.18,0.189
+ablation,score: norm term only|alpha=0.05,10,1.9,1.0,83.5,3.3,0,1.9,5.066,5.092,1.515,0.227,0.298,0.043,0.296
+ablation,score: cosine distance + norm|alpha=0.05,10,99.6,0.8,83.0,3.1,10,100.0,5.066,10.837,0.859,0.334,0.298,0.555,0.461
+ablation,squash: 1-exp(-r)|alpha=0.05,10,2.5,1.3,81.7,3.6,0,2.8,5.066,6.945,1.521,0.229,0.298,0.211,0.455
+ablation,squash: none (s=r)|alpha=0.05,10,1.7,1.0,80.0,3.5,0,1.3,5.066,7.794,2.293,0.195,0.298,0.262,0.678
+ablation,FedAvg|alpha=0.1,10,100.0,0.0,91.8,1.1,10,100.0,4.411,,,,,,
+ablation,"Coord-Median (midpoint, no clip)|alpha=0.1",10,27.2,24.0,89.1,2.9,2,9.2,4.411,,,,,,
+ablation,Coord-Median + clipping|alpha=0.1,10,27.0,23.7,89.0,2.9,2,10.2,4.411,,,,,,
+ablation,"Uniform weighted median, no clip|alpha=0.1",10,29.1,23.6,88.7,2.9,2,13.0,4.411,,,,,,
+ablation,TGM - trust (uniform weighted median + clip)|alpha=0.1,10,29.1,23.6,88.5,2.9,2,13.3,4.411,8.831,1.43,0.239,0.298,0.215,0.415
+ablation,"TGM - median (trust-weighted mean, ARA)|alpha=0.1",10,100.0,0.0,89.0,2.4,10,100.0,4.411,20.441,0.997,0.307,0.298,0.299,0.242
+ablation,TGM geometric median|alpha=0.1,10,100.0,0.0,88.3,2.6,10,100.0,4.411,19.282,1.014,0.305,0.298,0.286,0.238
+ablation,TGM HAS-only (lam=1)|alpha=0.1,10,23.5,25.1,88.1,2.8,2,3.7,4.411,7.348,1.823,0.212,0.298,0.195,0.447
+ablation,TGM provenance-only (lam=0)|alpha=0.1,10,14.9,18.8,88.6,2.8,1,4.7,4.411,4.811,1.369,0.242,0.298,0.196,0.459
+ablation,TGM full (lam=0.5)|alpha=0.1,10,14.3,18.9,88.4,2.9,1,4.2,4.411,5.734,1.579,0.223,0.298,0.191,0.459
+ablation,score: direction term only|alpha=0.1,10,27.4,24.1,88.4,3.0,2,11.1,4.411,16.798,1.032,0.294,0.298,0.176,0.191
+ablation,score: norm term only|alpha=0.1,10,13.4,19.0,89.3,2.3,1,3.6,4.411,4.849,1.801,0.203,0.298,0.061,0.413
+ablation,score: cosine distance + norm|alpha=0.1,10,81.9,23.5,88.1,2.8,8,100.0,4.411,13.731,0.861,0.333,0.298,0.577,0.484
+ablation,squash: 1-exp(-r)|alpha=0.1,10,13.8,18.9,88.2,2.8,1,3.3,4.411,6.105,1.883,0.2,0.298,0.217,0.58
+ablation,squash: none (s=r)|alpha=0.1,10,12.2,19.2,88.3,2.0,1,2.3,4.411,6.824,5.191,0.135,0.298,0.289,1.101
+ablation,FedAvg|alpha=0.5,10,99.9,0.1,93.1,0.7,10,100.0,3.523,,,,,,
+ablation,"Coord-Median (midpoint, no clip)|alpha=0.5",10,36.7,25.3,93.1,0.5,4,11.5,3.523,,,,,,
+ablation,Coord-Median + clipping|alpha=0.5,10,28.5,22.7,92.9,0.5,3,10.4,3.523,,,,,,
+ablation,"Uniform weighted median, no clip|alpha=0.5",10,42.7,29.1,93.1,0.5,4,12.9,3.523,,,,,,
+ablation,TGM - trust (uniform weighted median + clip)|alpha=0.5,10,35.6,27.1,92.9,0.5,3,12.0,3.523,5.688,1.791,0.202,0.297,0.217,0.556
+ablation,"TGM - median (trust-weighted mean, ARA)|alpha=0.5",10,100.0,0.0,92.7,0.6,10,100.0,3.523,17.387,1.209,0.274,0.297,0.32,0.363
+ablation,TGM geometric median|alpha=0.5,10,100.0,0.0,92.5,0.7,10,100.0,3.523,14.255,1.337,0.255,0.297,0.29,0.4
+ablation,TGM HAS-only (lam=1)|alpha=0.5,10,21.1,25.8,92.9,0.5,2,1.3,3.523,6.49,2.517,0.168,0.297,0.196,0.599
+ablation,TGM provenance-only (lam=0)|alpha=0.5,10,2.0,1.5,93.3,0.6,0,1.2,3.523,3.492,1.667,0.21,0.297,0.184,0.623
+ablation,TGM full (lam=0.5)|alpha=0.5,10,1.5,1.1,93.1,0.7,0,0.9,3.523,4.08,2.091,0.179,0.297,0.18,0.628
+ablation,score: direction term only|alpha=0.5,10,33.8,28.3,92.9,0.6,3,6.7,3.523,16.653,1.045,0.29,0.297,0.176,0.199
+ablation,score: norm term only|alpha=0.5,10,1.2,0.9,93.2,0.7,0,0.8,3.523,4.252,2.395,0.161,0.297,0.072,0.606
+ablation,score: cosine distance + norm|alpha=0.5,10,100.0,0.0,92.4,0.5,10,100.0,3.523,14.461,0.906,0.322,0.297,0.622,0.557
+ablation,squash: 1-exp(-r)|alpha=0.5,10,1.1,0.9,93.3,0.6,0,0.6,3.523,4.043,2.704,0.149,0.297,0.203,0.8
+ablation,squash: none (s=r)|alpha=0.5,10,0.5,0.5,93.4,0.7,0,0.2,3.523,5.632,929.04,0.054,0.297,0.35,2.252
